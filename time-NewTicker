@@ -1,0 +1,27 @@
+Ticker是一个周期触发定时的计时器，它会按照一个时间间隔ping数据库，数据库不通时则退出程序。
+  
+  timer := time.NewTicker(time.Minute * 30)
+	go func(x *xorm.Engine) {
+	  for _ = range timer.C {
+	    err = x.Ping()
+	    if err != nil {
+        log.Fatalf("db connect error: %#v\n", err.Error())
+      }
+    }
+  }(SqlDB)
+  
+如果是定时任务的需求，还是建议使用 time.Ticker 去实现，虽然没有仔细去比较过两种方式的时间误差，不过 time.Ticker 利用 channel 的方式可以带来比较高的弹性，用 select 可以设置超时条件，或者设定 default 的执行方式。
+
+请一定要记得在使用完毕之后呼叫 Stop，不然会造成 memory leak 的问题，假设定时任务跑在背景的 goroutine 上一定要记得在结束前呼叫 Stop()，可以养成下例的好习惯:
+
+go func() {
+    ticker := time.NewTicker(5*time.Second)
+    defer ticker.Stop()
+
+    for now := range ticker.C {
+        // do something
+        if (exception) {
+            break
+        }
+    }
+}()
